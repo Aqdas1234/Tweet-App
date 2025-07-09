@@ -5,14 +5,25 @@ from django.shortcuts import get_object_or_404 ,redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
+from django.db.models import Q
 
 # Create your views here.
 def index(request):
     return render(request, 'index.html')
 
 def tweet_list(request):
+    query = request.GET.get('q')
     tweets = tweet.objects.all().order_by('-created_at')
-    return render(request,'tweet_list.html',{ 'tweets':tweets})
+    if query:
+        tweets = tweets.filter(
+            Q(text__icontains=query) | Q(user__username__icontains=query)
+        )
+   
+
+    return render(request, 'tweet_list.html', {
+        'tweets': tweets,
+        'query': query
+    })
 
 @login_required
 def tweet_create(request):
@@ -74,7 +85,8 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('tweet_list')  
+            next_url = request.GET.get('next') or 'tweet_list'
+            return redirect(next_url) 
         else:
             messages.error(request, 'Invalid username or password.')
 
